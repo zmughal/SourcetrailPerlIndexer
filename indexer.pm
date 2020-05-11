@@ -63,6 +63,23 @@ sub encode_symbol {
     return encode_json( \%symbol );
 } ## end sub encode_symbol
 
+sub _index_attribute {
+    my ($node) = @_;
+
+    return unless $node->class eq 'PPI::Token::Word';
+
+    my ( $name ) = $node->content =~ qr/ (.+) /x;
+    my $full_name = "${package}::${name}";
+    my $symbol_id = recordSymbol( encode_symbol( name => $full_name ) );
+    recordSymbolDefinitionKind( $symbol_id, $DEFINITION_EXPLICIT );
+    recordSymbolKind( $symbol_id, $SYMBOL_FIELD );
+    recordSymbolLocation( $symbol_id, $file_id, $node->line_number, $node->column_number, $node->line_number,
+        $node->column_number + length( $node->content ) - 1 );
+    $locals{"$full_name"} = $symbol_id;
+
+    return;
+} ## end sub _index_attribute
+
 sub index_call {
     my ($node) = @_;
 
@@ -73,6 +90,39 @@ sub index_call {
         my $next = $node->snext_sibling;
         return index_local_variables($next) if $next && $VALID{ $next->class };
     } ## end if ( $symbol eq 'my' )
+
+    if ( $symbol eq 'has' ) {
+        my $next = $node->snext_sibling;
+        _index_attribute($next);
+
+	$node = $next->parent;
+	while ( $node = $node->snext_sibling ) {
+		index_statements($node);
+	}
+
+	return;
+    } ## end if ( $symbol eq 'has' )
+
+    if ( $symbol =~ m/^(extends|with)$/ ) {
+	    my $kind = $symbol eq 'extends' ? $REFERENCE_INHERITANCE : $REFERENCE_ANNOTATION_USAGE;
+	    my $type = $symbol eq 'extends' ? $SYMBOL_CLASS : $SYMBOL_INTERFACE;
+	    my @refs = eval $node->snext_sibling;
+
+	    for my $ref (@refs) {
+		    my $name_id = recordSymbol( encode_symbol( name => $ref ) );
+		    recordSymbolKind( $name_id, $type );
+		    my $reference_id = recordReference( $package_id, $name_id, $kind );
+		    recordReferenceLocation( $reference_id, $file_id, $node->line_number, $node->column_number, $node->line_number,
+			    $node->column_number + length( $node->content ) - 1 );
+	    }
+
+		$node = $node->parent;
+		while ( $node = $node->snext_sibling ) {
+			index_statements($node);
+		}
+
+		return;
+	}
 
     if ( $symbol eq 'Readonly' ) {
         my $next = $node->snext_sibling;
