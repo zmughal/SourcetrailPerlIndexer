@@ -7,7 +7,10 @@ use warnings;
 
 use Exporter qw(import);
 use JSON;
+$PPI::XS_DISABLE = 1;
 use PPI;
+use PPI::FP;
+
 use PPI::Dumper;
 use Readonly;
 
@@ -40,7 +43,8 @@ Readonly my %KEYWORDS => map { $_ => 1 }
     sethostent setnetent setprotoent setservent getpwuid getpwnam getgrgid getgrnam getlogin
     endpwent endgrent getpwent getgrent setpwent setgrent gmtime localtime time
     warn format formline reset scalar prototype lock tie tied untie
-    __DATA__ __END__ __FILE__ __LINE__ __PACKAGE__ CORE sub q qq qr qw qx s tr y);
+    __DATA__ __END__ __FILE__ __LINE__ __PACKAGE__ CORE sub q qq qr qw qx s tr y),
+    PPI::FP::SUBNAMES;
 
 Readonly my %PRAGMAS => map { $_ => 1 }
     qw(attributes attrs autodie autouse base bigint bignum bigrat blib bytes charnames constant diagnostics
