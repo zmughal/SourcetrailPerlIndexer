@@ -103,6 +103,18 @@ sub index_call {
 	return;
     } ## end if ( $symbol eq 'has' )
 
+    if ( $symbol eq 'lazy' ) {
+        my $next = $node->snext_sibling;
+        _index_attribute($next);
+
+	$node = $next->parent;
+	while ( $node = $node->snext_sibling ) {
+		index_statements($node);
+	}
+
+	return;
+    } ## end if ( $symbol eq 'lazy' )
+
     if ( $symbol =~ m/^(extends|with)$/ ) {
 	    my $kind = $symbol eq 'extends' ? $REFERENCE_INHERITANCE : $REFERENCE_ANNOTATION_USAGE;
 	    my $type = $symbol eq 'extends' ? $SYMBOL_CLASS : $SYMBOL_INTERFACE;
