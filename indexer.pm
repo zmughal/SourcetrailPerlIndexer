@@ -119,14 +119,22 @@ sub index_call {
     if ( $symbol =~ m/^(extends|with)$/ ) {
 	    my $kind = $symbol eq 'extends' ? $REFERENCE_INHERITANCE : $REFERENCE_ANNOTATION_USAGE;
 	    my $type = $symbol eq 'extends' ? $SYMBOL_CLASS : $SYMBOL_INTERFACE;
-	    my @refs = eval $node->snext_sibling;
+	    my $nsib = $node->snext_sibling;
+	    my @refs = eval $nsib;
 
+	    my $content = $nsib->content;
+	    pos($content) = 0;
 	    for my $ref (@refs) {
+		if( $content =~ /\G.*?(\Q$ref\E)/sg ) {
+		    my $line = 0 + substr($content, 0, $-[1]) =~ tr/\n//;
+		    my $col = 1 + length( ( substr($content, 0, $-[1]) =~ m/(?:\A|\n)([^\n]*)$/s )[0] );
 		    my $name_id = recordSymbol( encode_symbol( name => $ref ) );
 		    recordSymbolKind( $name_id, $type );
 		    my $reference_id = recordReference( $package_id, $name_id, $kind );
-		    recordReferenceLocation( $reference_id, $file_id, $node->line_number, $node->column_number, $node->line_number,
-			    $node->column_number + length( $node->content ) - 1 );
+		    recordReferenceLocation( $reference_id, $file_id,
+			    $node->line_number + $line, $col,
+			    $node->line_number + $line, $col + length( $ref ) - 1 );
+		}
 	    }
 
 		$node = $node->parent;
