@@ -66,9 +66,10 @@ sub encode_symbol {
 sub _index_attribute {
     my ($node) = @_;
 
-    return unless $node->class eq 'PPI::Token::Word';
+    return unless $node->class eq 'PPI::Token::Word'
+	    || $node->isa('PPI::Token::Quote');
 
-    my ( $name ) = $node->content =~ qr/ (.+) /x;
+    my $name = $node->literal;
     my $full_name = "${package}::${name}";
     my $symbol_id = recordSymbol( encode_symbol( name => $full_name ) );
     recordSymbolDefinitionKind( $symbol_id, $DEFINITION_EXPLICIT );
