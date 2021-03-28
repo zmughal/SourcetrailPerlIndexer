@@ -48,6 +48,7 @@ Readonly my %PRAGMAS => map { $_ => 1 }
     parent re sigtrap sort strict subs threads threads::shared utf8 vars version vmsish warnings warnings::register);
 
 my ( $file_id, %globals, %locals, $package, $package_id );
+my ( $extra_package_node_for_class, $classy_type );
 
 sub encode_symbol {
     my %args    = @_;
@@ -203,8 +204,18 @@ sub index_include {
     my $name = $node->schild(1);
     return if $name->class ne 'PPI::Token::Word' || $PRAGMAS{ $name->content };
 
+    my $moosey_re = qr/(Moose|Moo|Mu)/;
+    if( $name->content =~ /^$moosey_re$/ ) {
+	$classy_type = $SYMBOL_CLASS;
+    } elsif( $name->content =~ /^$moosey_re\Q::Role\E$/ ) {
+	$classy_type = $SYMBOL_INTERFACE;
+    }
+    if( $classy_type ) {
+	recordSymbolKind( $package_id, $classy_type );
+    }
+
     my $name_id = recordSymbol( encode_symbol( name => $name->content ) );
-    recordSymbolKind( $name_id, $SYMBOL_PACKAGE );
+    recordSymbolKind( $name_id, $name->content =~ /::Role::/ ? $SYMBOL_INTERFACE : $SYMBOL_CLASS );
     my $reference_id = recordReference( $package_id, $name_id, $kind );
     recordReferenceLocation( $reference_id, $file_id, $name->line_number, $name->column_number, $name->line_number,
         $name->column_number + length( $name->content ) - 1 );
@@ -293,10 +304,10 @@ sub index_package {
     my ($node) = @_;
 
     my $name = $node->schild(1);
+    $extra_package_node_for_class = $name;
     $package = $name->content;
     $package_id = recordSymbol( encode_symbol( name => $package ) );
     recordSymbolDefinitionKind( $package_id, $DEFINITION_EXPLICIT );
-    recordSymbolKind( $package_id, $SYMBOL_PACKAGE );
     recordSymbolLocation( $package_id, $file_id, $name->line_number, $name->column_number, $name->line_number,
         $name->column_number + length( $name->content ) - 1 );
 
@@ -348,6 +359,10 @@ sub index_statements {
     }
     elsif ( $class !~ m/^PPI::Token/x ) {
         index_statements($_) foreach ( $node->schildren );
+    }
+
+    if( ! $classy_type ) {
+	    recordSymbolKind( $package_id, $SYMBOL_CLASS );
     }
 
     return;
